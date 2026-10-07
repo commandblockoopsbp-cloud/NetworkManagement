@@ -14,7 +14,7 @@ import java.util.Map;
 
 public final class NetworkManagement {
     private static int id = 0;
-    private static final String PROTOCOL_VERSION = "1.0.1";
+    private static final String PROTOCOL_VERSION = "1.0.2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -45,11 +45,19 @@ public final class NetworkManagement {
         Map<String, Object> memberValues = annotation.getAnnotationData();
         if (memberValues != null && memberValues.containsKey("direction")) {
             Object rawDirection = memberValues.get("direction");
-            if (rawDirection instanceof Object[]) {
-                Object[] enumData = (Object[]) rawDirection;
-                String enumName = (String) enumData[1];
-                NetworkDirection direction = NetworkDirection.valueOf(enumName);
-                registerPacket(packetClass, id++, direction);
+            try {
+                if (rawDirection instanceof Object[]) {
+                    Object[] enumData = (Object[]) rawDirection;
+                    NetworkDirection direction = NetworkDirection.valueOf(enumData[1].toString());
+                    registerPacket(packetClass, id++, direction);
+                    NetworkManagerMod.LOGGER.info("[NetworkManagement] Đã đăng ký thành công packet: {} với ID: {} và Hướng: {}", packetClass.getName(), (id - 1), direction);
+                } else if (rawDirection instanceof String) {
+                    NetworkDirection direction = NetworkDirection.valueOf((String) rawDirection);
+                    registerPacket(packetClass, id++, direction);
+                    NetworkManagerMod.LOGGER.info("[NetworkManagement] Đã đăng ký thành công packet: {} với ID: {} và Hướng: {}", packetClass.getName(), (id - 1), direction);
+                }
+            } catch (Exception e) {
+                NetworkManagerMod.LOGGER.warn("[NetworkManagement] Không đọc được direction, dùng mặc định PLAY_TO_CLIENT");
             }
         }
     }
