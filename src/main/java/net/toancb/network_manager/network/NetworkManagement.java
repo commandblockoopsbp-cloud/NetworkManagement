@@ -14,7 +14,7 @@ import java.util.Map;
 
 public final class NetworkManagement {
     private static int id = 0;
-    private static final String PROTOCOL_VERSION = "1.0.2";
+    private static final String PROTOCOL_VERSION = "1.0.3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -26,38 +26,27 @@ public final class NetworkManagement {
 
     @SuppressWarnings("unchecked")
     public static void register() {
-        ModList.get().getAllScanData().forEach(scanData -> {
-            scanData.getAnnotations().forEach(annotation -> {
-                if (annotation.getAnnotationType().equals(Type.getType(AutoPacket.class))) {
-                    try {
-                        String className = annotation.getClassType().getClassName();
-                        Class<? extends NetworkApply> packetClass = (Class<? extends NetworkApply>) Class.forName(className);
-                        registerChannel(annotation, packetClass);
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
+        ModList.get().getAllScanData().forEach(scanData -> scanData.getAnnotations().forEach(annotation -> {
+            if (annotation.getAnnotationType().equals(Type.getType(AutoPacket.class))) {
+                try {
+                    String className = annotation.getClassType().getClassName();
+                    Class<? extends NetworkApply> packetClass = (Class<? extends NetworkApply>) Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+                    registerChannel(annotation, packetClass);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
                 }
-            });
-        });
+            }
+        }));
     }
 
     private static void registerChannel(ModFileScanData.AnnotationData annotation, Class<? extends NetworkApply> packetClass) {
         Map<String, Object> memberValues = annotation.getAnnotationData();
         if (memberValues != null && memberValues.containsKey("direction")) {
             Object rawDirection = memberValues.get("direction");
-            try {
-                if (rawDirection instanceof Object[]) {
-                    Object[] enumData = (Object[]) rawDirection;
-                    NetworkDirection direction = NetworkDirection.valueOf(enumData[1].toString());
-                    registerPacket(packetClass, id++, direction);
-                    NetworkManagerMod.LOGGER.info("[NetworkManagement] Đã đăng ký thành công packet: {} với ID: {} và Hướng: {}", packetClass.getName(), (id - 1), direction);
-                } else if (rawDirection instanceof String) {
-                    NetworkDirection direction = NetworkDirection.valueOf((String) rawDirection);
-                    registerPacket(packetClass, id++, direction);
-                    NetworkManagerMod.LOGGER.info("[NetworkManagement] Đã đăng ký thành công packet: {} với ID: {} và Hướng: {}", packetClass.getName(), (id - 1), direction);
-                }
-            } catch (Exception e) {
-                NetworkManagerMod.LOGGER.warn("[NetworkManagement] Không đọc được direction, dùng mặc định PLAY_TO_CLIENT");
+            if (rawDirection instanceof String) {
+                String enumData = (String) rawDirection;
+                NetworkDirection direction = NetworkDirection.valueOf(enumData);
+                registerPacket(packetClass, id++, direction);
             }
         }
     }
