@@ -2,19 +2,17 @@ package net.toancb.network_manager.network;
 
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.network.NetworkDirection;
+import net.minecraftforge.fml.network.NetworkEvent;
 import net.minecraftforge.fml.network.NetworkRegistry;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
-import net.minecraftforge.forgespi.language.ModFileScanData;
 import net.toancb.network_manager.NetworkManagerMod;
-import org.objectweb.asm.Type;
 
-import java.util.Map;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 public final class NetworkManagement {
-    private static int id = 0;
-    private static final String PROTOCOL_VERSION = "1.0.4";
+    private static final String PROTOCOL_VERSION = "1.0.5";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -24,49 +22,21 @@ public final class NetworkManagement {
 
     private NetworkManagement() {}
 
-    @SuppressWarnings("unchecked")
-    public static void register(Class<?> mainClass) {
-        ModList.get().getAllScanData().forEach(scanData -> scanData.getAnnotations().forEach(annotation -> {
-            if (annotation.getAnnotationType().equals(Type.getType(AutoPacket.class))) {
-                try {
-                    String className = annotation.getClassType().getClassName();
-                    Class<?> clazz = Class.forName(className, true, mainClass.getClassLoader());
-                    if (NetworkApply.class.isAssignableFrom(clazz)) {
-                        Class<? extends NetworkApply> packetClass = (Class<? extends NetworkApply>) clazz;
-                        registerChannel(annotation, packetClass);
-                    }
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            }
-        }));
-    }
-
-    private static void registerChannel(ModFileScanData.AnnotationData annotation, Class<? extends NetworkApply> packetClass) {
-        Map<String, Object> memberValues = annotation.getAnnotationData();
-        if (memberValues != null && memberValues.containsKey("direction")) {
-            Object rawDirection = memberValues.get("direction");
-            if (rawDirection instanceof String) {
-                String enumData = (String) rawDirection;
-                NetworkDirection direction = NetworkDirection.valueOf(enumData);
-                registerPacket(packetClass, id++, direction);
-            }
+    @SafeVarargs
+    public static <T extends NetworkApply> void register(Class<T>... classes) {
+        int id = 0;
+        for (Class<T> clazz : classes) {
+            CHANNEL.messageBuilder(clazz, id++, NetworkDirection.PLAY_TO_SERVER)
+                    .encoder(NetworkApply::encode)
+                    .decoder(buf -> {
+                        try {
+                            return clazz.cast(clazz.getDeclaredConstructor(PacketBuffer.class).newInstance(buf));
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .consumer(NetworkApply::handlePacket)
+                    .add();
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void registerPacket(Class<?> packetClass, int id, NetworkDirection direction) {
-        Class<NetworkApply> clazz = (Class<NetworkApply>) packetClass;
-        CHANNEL.messageBuilder(clazz, id, direction)
-                .encoder(NetworkApply::encode)
-                .decoder(buf -> {
-                    try {
-                        return clazz.getConstructor(PacketBuffer.class).newInstance(buf);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to decode packet: " + clazz.getName(), e);
-                    }
-                })
-                .consumer(NetworkApply::handlePacket)
-                .add();
     }
 }
