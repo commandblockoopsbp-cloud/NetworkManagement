@@ -8,11 +8,12 @@ import net.minecraftforge.fml.network.NetworkRegistry;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
 import net.toancb.network_manager.NetworkManagerMod;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 public final class NetworkManagement {
-    private static final String PROTOCOL_VERSION = "1.0.5";
+    private static final String PROTOCOL_VERSION = "1.0.6";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -23,16 +24,23 @@ public final class NetworkManagement {
     private NetworkManagement() {}
 
     @SafeVarargs
-    public static <T extends NetworkApply> void register(Class<T>... classes) {
+    public static void register(Class<? extends NetworkApply>... classes) {
         int id = 0;
-        for (Class<T> clazz : classes) {
-            CHANNEL.messageBuilder(clazz, id++, NetworkDirection.PLAY_TO_SERVER)
+        for (Class<? extends NetworkApply> clazz : classes) {
+            registerPacket(clazz, id++);
+        }
+    }
+
+    private static <T extends NetworkApply> void registerPacket(Class<T> clazz, int id) {
+        if (clazz.isAnnotationPresent(AutoPacket.class)) {
+            AutoPacket annotation = clazz.getAnnotation(AutoPacket.class);
+            CHANNEL.messageBuilder(clazz, id, annotation.direction())
                     .encoder(NetworkApply::encode)
                     .decoder(buf -> {
                         try {
-                            return clazz.cast(clazz.getDeclaredConstructor(PacketBuffer.class).newInstance(buf));
+                            return clazz.getDeclaredConstructor(PacketBuffer.class).newInstance(buf);
                         } catch (Exception e) {
-                            throw new RuntimeException(e);
+                            throw new RuntimeException("Could not instantiate decoder for packet: " + clazz.getName(), e);
                         }
                     })
                     .consumer(NetworkApply::handlePacket)

@@ -14,13 +14,7 @@ public abstract class NetworkApply {
 
     public abstract void encode(PacketBuffer buffer);
 
-    public abstract  <T extends NetworkApply> T decode(PacketBuffer buffer);
-
     protected abstract void handle(NetworkEvent.Context context);
-
-    public NetworkDirection getDirection() {
-        return NetworkDirection.PLAY_TO_SERVER;
-    }
 
     public void handlePacket(Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
