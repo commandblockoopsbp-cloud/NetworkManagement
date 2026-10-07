@@ -14,7 +14,7 @@ import java.util.Map;
 
 public final class NetworkManagement {
     private static int id = 0;
-    private static final String PROTOCOL_VERSION = "1.0.3";
+    private static final String PROTOCOL_VERSION = "1.0.4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -25,13 +25,16 @@ public final class NetworkManagement {
     private NetworkManagement() {}
 
     @SuppressWarnings("unchecked")
-    public static void register() {
+    public static void register(Class<?> mainClass) {
         ModList.get().getAllScanData().forEach(scanData -> scanData.getAnnotations().forEach(annotation -> {
             if (annotation.getAnnotationType().equals(Type.getType(AutoPacket.class))) {
                 try {
                     String className = annotation.getClassType().getClassName();
-                    Class<? extends NetworkApply> packetClass = (Class<? extends NetworkApply>) Class.forName(className, true, Thread.currentThread().getContextClassLoader());
-                    registerChannel(annotation, packetClass);
+                    Class<?> clazz = Class.forName(className, true, mainClass.getClassLoader());
+                    if (NetworkApply.class.isAssignableFrom(clazz)) {
+                        Class<? extends NetworkApply> packetClass = (Class<? extends NetworkApply>) clazz;
+                        registerChannel(annotation, packetClass);
+                    }
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
