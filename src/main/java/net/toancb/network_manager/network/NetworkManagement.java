@@ -14,7 +14,7 @@ import java.util.Map;
 
 public final class NetworkManagement {
     private static int id = 0;
-    private static final String PROTOCOL_VERSION = "1.0.0";
+    private static final String PROTOCOL_VERSION = "1.0.1";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
