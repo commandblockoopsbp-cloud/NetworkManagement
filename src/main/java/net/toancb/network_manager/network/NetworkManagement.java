@@ -2,6 +2,9 @@ package net.toancb.network_manager.network;
 
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.moddiscovery.ModFile;
 import net.minecraftforge.fml.network.NetworkDirection;
 import net.minecraftforge.fml.network.NetworkEvent;
 import net.minecraftforge.fml.network.NetworkRegistry;
@@ -13,7 +16,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 public final class NetworkManagement {
-    private static final String PROTOCOL_VERSION = "1.0.6";
+    private static final String PROTOCOL_VERSION = "1.0.7";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(NetworkManagerMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -23,12 +26,21 @@ public final class NetworkManagement {
 
     private NetworkManagement() {}
 
-    @SafeVarargs
-    public static void register(Class<? extends NetworkApply>... classes) {
-        int id = 0;
-        for (Class<? extends NetworkApply> clazz : classes) {
-            registerPacket(clazz, id++);
-        }
+    @SuppressWarnings("unchecked")
+    public static void register() {
+        final int[] id = {0};
+        ModList.get().getAllScanData().forEach(scanData -> scanData.getAnnotations().forEach(annotationData -> {
+            String className = annotationData.getClassType().getClassName();
+            try {
+                Class<?> clazz = Class.forName(className);
+                if (NetworkApply.class.isAssignableFrom(clazz)) {
+                    Class<? extends NetworkApply> applyClass = (Class<? extends NetworkApply>) clazz;
+                    registerPacket(applyClass, id[0]++);
+                }
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }));
     }
 
     private static <T extends NetworkApply> void registerPacket(Class<T> clazz, int id) {

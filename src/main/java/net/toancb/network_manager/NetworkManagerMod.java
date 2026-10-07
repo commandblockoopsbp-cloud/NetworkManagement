@@ -46,6 +46,7 @@ public class NetworkManagerMod
         // some preinit code
         LOGGER.info("HELLO FROM PREINIT");
         LOGGER.info("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName());
+        NetworkManagement.register();
     }
 
     private void doClientStuff(final FMLClientSetupEvent event) {
